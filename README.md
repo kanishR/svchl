@@ -57,22 +57,22 @@ It lists every labeled element currently visible, marking which ones are tappabl
 
 `svchl mcp` starts an MCP server exposing `inspect`/`tap`/`type`/`launch` as tools. It does **not** call any LLM itself — it's driven by whatever agent is attached (Claude Code, Claude Desktop, any MCP client). The split stays the same as the rest of this tool: the agent only does the *authoring*, live, once. What it saves is a plain flow file, replayed forever after by `svchl run` with no AI involved and no per-run cost or flakiness.
 
-Add it to your agent's MCP config, pointed at the app repo you're testing (so `flows/` lands there):
+Register it once, at user scope, so it's available from `claude` in any terminal (not published to npm yet, so point it at your local checkout):
 
-```json
-{
-  "mcpServers": {
-    "svchl": { "command": "npx", "args": ["svchl", "mcp"] }
-  }
-}
+```bash
+claude mcp add -s user svchl -- node /path/to/svchl/bin/svchl.js mcp
 ```
 
-Then just ask, in either form:
+(once published: `claude mcp add -s user svchl -- npx svchl mcp`). `flows/` lands in whatever directory you run `claude` from.
 
-- **Natural language**: "Use svchl to record a flow: book a one-way flight on MakeMyTrip from Bengaluru to Delhi."
+Then just open a terminal, run `claude`, and ask, in either form:
+
+- **Natural language**: "Book a ticket from Bengaluru to Delhi on ixigo" — treat "book" loosely, the agent should stop at search results, not actually log in or pay. Say so explicitly if you want to be sure.
 - **A PRD**: point the agent at a PRD file and ask it to turn each acceptance criterion into a flow. It should list the scenarios it plans to record first so you can confirm before it starts driving the device.
 
-The agent's loop is exactly the tool set: `svchl_inspect` to see the screen, `svchl_tap`/`svchl_type`/`svchl_launch` to act (each requires the same `expect` every hand-written step does — the tool schema won't let it skip that), `svchl_save_flow` to write `flows/*.yaml`, and `svchl_verify_flow` to replay the saved file once, deterministically, as a sanity check before you trust it in CI.
+The agent's loop is exactly the tool set: `svchl_inspect` to see the screen, `svchl_tap`/`svchl_type`/`svchl_launch`/`svchl_scroll`/`svchl_back` to act (each requires the same `expect` every hand-written step does — the tool schema won't let it skip that), `svchl_save_flow` to write `flows/*.yaml`, and `svchl_verify_flow` to replay the saved file once, deterministically, as a sanity check before you trust it in CI.
+
+Each tool call goes through Claude Code's normal permission prompts unless you've allowlisted them, so expect to approve the first few.
 
 ## Output
 
