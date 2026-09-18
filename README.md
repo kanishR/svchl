@@ -97,6 +97,10 @@ Exit code is `0` on pass, `1` on fail — wire it into CI as-is.
 
 These are the natural next steps, not accidents — see [software-mansion/argent](https://github.com/software-mansion/argent) and [google/artemis](https://github.com/google/artemis) for where this can go.
 
+## Learning log
+
+[`LEARNING_LOG.md`](LEARNING_LOG.md) — dated notes on gotchas and performance findings discovered while building/using this, kept so they don't get rediscovered from scratch.
+
 ## License
 
 MIT

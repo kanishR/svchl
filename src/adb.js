@@ -66,15 +66,22 @@ export class Adb {
   }
 
   // Dumps the accessibility/UI hierarchy and returns it as an XML string.
+  //
+  // `uiautomator dump` itself costs ~2s+ on a real device with a complex
+  // screen (Android walking the whole view tree) — that's not ours to
+  // shave. What IS ours: doing it as one adb round-trip instead of two.
+  // `exec-out ... dump /dev/tty` writes the XML straight to our stdout
+  // instead of a device file we'd then need a second `cat` call to fetch,
+  // saving ~500ms per dump. It also appends a trailing status line after
+  // the XML ("UI hierchary dumped to: /dev/tty") that we trim off.
   async dumpUiTree() {
-    const devicePath = "/sdcard/svchl-dump.xml";
-    await this.shell(["uiautomator", "dump", devicePath]);
     const { stdout } = await execFileP(
       this.bin,
-      this.args(["exec-out", "cat", devicePath]),
+      this.args(["exec-out", "uiautomator", "dump", "/dev/tty"]),
       { maxBuffer: 32 * 1024 * 1024, encoding: "utf8" }
     );
-    return stdout;
+    const end = stdout.lastIndexOf("</hierarchy>");
+    return end === -1 ? stdout : stdout.slice(0, end + "</hierarchy>".length);
   }
 
   async screenshot(outPath) {
