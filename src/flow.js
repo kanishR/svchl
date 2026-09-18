@@ -39,3 +39,9 @@ export function actionOf(step) {
   const type = ACTIONS.find((a) => step[a] !== undefined);
   return { type, value: step[type] };
 }
+
+// Serializes a { app, steps } flow back to the same YAML shape loadFlow()
+// reads. Used by `svchl mcp` to persist a recorded session.
+export function toYaml(flow) {
+  return YAML.stringify(flow, { indent: 2 });
+}

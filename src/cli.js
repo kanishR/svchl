@@ -3,6 +3,7 @@ import { install } from "./commands/install.js";
 import { devices } from "./commands/devices.js";
 import { inspect } from "./commands/inspect.js";
 import { run as runCmd } from "./commands/run.js";
+import { mcp } from "./commands/mcp.js";
 
 export async function run(argv) {
   const program = new Command();
@@ -30,6 +31,11 @@ export async function run(argv) {
     .option("--device <serial>", "target device (required if more than one is connected)")
     .option("--timeout <duration>", 'per-step timeout, e.g. "10000" or "10s"', "10s")
     .action((flow, opts) => runCmd(flow, opts));
+
+  program
+    .command("mcp")
+    .description("start an MCP server exposing inspect/tap/type/launch, so an AI agent can author flows by driving a real device")
+    .action(mcp);
 
   await program.parseAsync(argv);
 }

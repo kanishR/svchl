@@ -2,24 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { actionOf } from "./flow.js";
 import { parseTree, findTappable, isVisible, labelFor } from "./locator.js";
-
-const POLL_INTERVAL_MS = 300;
+import { retryUntil } from "./poll.js";
 
 class StepError extends Error {}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function retryUntil(fn, timeoutMs) {
-  const start = Date.now();
-  for (;;) {
-    const result = await fn();
-    if (result) return result;
-    if (Date.now() - start >= timeoutMs) return null;
-    await sleep(POLL_INTERVAL_MS);
-  }
-}
 
 function slug(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40) || "step";

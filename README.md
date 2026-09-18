@@ -51,6 +51,27 @@ npx svchl inspect --device <serial>
 
 It lists every labeled element currently visible, marking which ones are tappable.
 
+## Writing flows with an AI agent
+
+`svchl mcp` starts an MCP server exposing `inspect`/`tap`/`type`/`launch` as tools. It does **not** call any LLM itself — it's driven by whatever agent is attached (Claude Code, Claude Desktop, any MCP client). The split stays the same as the rest of this tool: the agent only does the *authoring*, live, once. What it saves is a plain flow file, replayed forever after by `svchl run` with no AI involved and no per-run cost or flakiness.
+
+Add it to your agent's MCP config, pointed at the app repo you're testing (so `flows/` lands there):
+
+```json
+{
+  "mcpServers": {
+    "svchl": { "command": "npx", "args": ["svchl", "mcp"] }
+  }
+}
+```
+
+Then just ask, in either form:
+
+- **Natural language**: "Use svchl to record a flow: book a one-way flight on MakeMyTrip from Bengaluru to Delhi."
+- **A PRD**: point the agent at a PRD file and ask it to turn each acceptance criterion into a flow. It should list the scenarios it plans to record first so you can confirm before it starts driving the device.
+
+The agent's loop is exactly the tool set: `svchl_inspect` to see the screen, `svchl_tap`/`svchl_type`/`svchl_launch` to act (each requires the same `expect` every hand-written step does — the tool schema won't let it skip that), `svchl_save_flow` to write `flows/*.yaml`, and `svchl_verify_flow` to replay the saved file once, deterministically, as a sanity check before you trust it in CI.
+
 ## Output
 
 Each run writes `out/<run-id>/`:
@@ -65,8 +86,10 @@ Exit code is `0` on pass, `1` on fail — wire it into CI as-is.
 
 - iOS
 - Elements with no accessibility label (raw Canvas/some Compose without `testTag`, WebViews) — `inspect` will show you an empty screen in that case
+- `scroll` and `back` actions — a real screen with a list below the fold, or a flow needing a back-navigation assertion, will hit this
 - A `--repeat` flakiness gate before a new test blocks CI
 - Video/annotated recordings, OCR fallback, a device farm runner
+- A standalone `svchl generate "..."` that works without any agent attached (today `svchl mcp` needs an MCP client, e.g. Claude Code, doing the reasoning)
 
 These are the natural next steps, not accidents — see [software-mansion/argent](https://github.com/software-mansion/argent) and [google/artemis](https://github.com/google/artemis) for where this can go.
 

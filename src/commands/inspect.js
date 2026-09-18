@@ -1,12 +1,10 @@
 import { pickDevice } from "../device.js";
-import { parseTree } from "../locator.js";
+import { parseTree, visibleElements } from "../locator.js";
 
 export async function inspect({ device }) {
   const adb = await pickDevice(device);
   const xml = await adb.dumpUiTree();
-  // Layout containers carry a resource-id with no text on almost every screen;
-  // only surface elements a flow could actually target.
-  const nodes = parseTree(xml).filter((n) => n.text || n.desc || (n.clickable && n.id));
+  const nodes = visibleElements(parseTree(xml));
 
   if (nodes.length === 0) {
     console.log("no labeled elements found on screen (custom-rendered UI, e.g. Compose/Canvas/WebView).");

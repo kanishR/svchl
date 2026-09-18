@@ -78,6 +78,12 @@ export function isVisible(nodes, expectation) {
   return nodes.some((n) => matches(n, expectation));
 }
 
+// Layout containers carry a resource-id with no text on almost every
+// screen; only surface elements a flow could actually target.
+export function visibleElements(nodes) {
+  return nodes.filter((n) => n.text || n.desc || (n.clickable && n.id));
+}
+
 export function labelFor(target) {
   if (typeof target === "string") return target;
   if (target.text !== undefined) return target.text;

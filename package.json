@@ -31,8 +31,10 @@
     "url": "git+https://github.com/kanishR/svchl.git"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "commander": "^12.1.0",
     "fast-xml-parser": "^5.7.0",
-    "yaml": "^2.5.1"
+    "yaml": "^2.5.1",
+    "zod": "^4.6.5"
   }
 }

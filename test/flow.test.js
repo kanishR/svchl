@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { loadFlow, FlowError, actionOf } from "../src/flow.js";
+import { loadFlow, FlowError, actionOf, toYaml } from "../src/flow.js";
 
 function writeTmpFlow(yamlText) {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "svchl-test-")), "flow.yaml");
@@ -46,4 +46,18 @@ steps:
 test("loadFlow rejects an empty steps list", () => {
   const file = writeTmpFlow(`steps: []`);
   assert.throws(() => loadFlow(file), FlowError);
+});
+
+test("toYaml output round-trips through loadFlow (svchl_save_flow's contract)", () => {
+  const recorded = {
+    app: "com.android.settings",
+    steps: [
+      { launch: {}, expect: "Network & internet" },
+      { tap: "Network & internet", expect: "Internet" },
+      { type: { into: "Search", text: "wifi" }, expect: "Wi‑Fi" },
+    ],
+  };
+  const file = writeTmpFlow(toYaml(recorded));
+  const reloaded = loadFlow(file);
+  assert.deepEqual(reloaded, recorded);
 });
