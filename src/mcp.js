@@ -203,6 +203,68 @@ export async function startMcpServer() {
   );
 
   server.registerTool(
+    "svchl_scroll",
+    {
+      title: "Scroll the screen",
+      description:
+        'Swipe the middle of the screen in `direction`, named for which way the CONTENT moves (not the finger) — "down" reveals content below, e.g. further down a list. Use when the element you need isn\'t in svchl_inspect\'s output yet because it\'s off-screen. Then wait for `expect` (usually the label you were scrolling to find).',
+      inputSchema: {
+        device: z.string().optional(),
+        direction: z.enum(["down", "up", "left", "right"]),
+        expect: z.string().min(1),
+        timeoutMs: z.number().int().positive().optional(),
+      },
+    },
+    async ({ device, direction, expect, timeoutMs }) => {
+      try {
+        const adb = await pickDevice(device);
+        await adb.scroll(direction);
+        const ok = await retryUntil(
+          async () => isVisible(parseTree(await adb.dumpUiTree()), expect),
+          timeoutMs ?? DEFAULT_TIMEOUT_MS
+        );
+        if (!ok) {
+          return errorResult(`scrolled ${direction} but "${expect}" never appeared.\ncurrent screen:\n${await screenDump(adb)}`);
+        }
+        session.steps.push({ scroll: direction, expect });
+        return textResult(`scrolled ${direction}, "${expect}" confirmed.\nstep ${session.steps.length} recorded.\ncurrent screen:\n${await screenDump(adb)}`);
+      } catch (err) {
+        return errorResult(err.message);
+      }
+    }
+  );
+
+  server.registerTool(
+    "svchl_back",
+    {
+      title: "Press the system back button",
+      description: "Press the device back button, then wait for `expect` to appear (usually something on the screen you're returning to).",
+      inputSchema: {
+        device: z.string().optional(),
+        expect: z.string().min(1),
+        timeoutMs: z.number().int().positive().optional(),
+      },
+    },
+    async ({ device, expect, timeoutMs }) => {
+      try {
+        const adb = await pickDevice(device);
+        await adb.back();
+        const ok = await retryUntil(
+          async () => isVisible(parseTree(await adb.dumpUiTree()), expect),
+          timeoutMs ?? DEFAULT_TIMEOUT_MS
+        );
+        if (!ok) {
+          return errorResult(`pressed back but "${expect}" never appeared.\ncurrent screen:\n${await screenDump(adb)}`);
+        }
+        session.steps.push({ back: {}, expect });
+        return textResult(`pressed back, "${expect}" confirmed.\nstep ${session.steps.length} recorded.\ncurrent screen:\n${await screenDump(adb)}`);
+      } catch (err) {
+        return errorResult(err.message);
+      }
+    }
+  );
+
+  server.registerTool(
     "svchl_recording_status",
     {
       title: "Show the current recording",

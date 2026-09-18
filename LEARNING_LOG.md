@@ -4,6 +4,17 @@ Dated entries on things discovered while building/using svchl — gotchas, perfo
 
 ---
 
+## 2026-09-18: added scroll/back; first real `back` press can be a no-op
+
+Verified both against the live MakeMyTrip app on the real device before trusting them:
+
+- `scroll: "down"` (a single swipe of the middle 50% of the screen) revealed a new flight card ("Air India") that wasn't in the tree before scrolling — confirmed working.
+- `back: {}` on the city-picker screen (text input focused, keyboard showing) did **not** navigate back on the first press — it just dismissed the keyboard. The second press actually went back. From the search-results screen (no input focused), a single press worked immediately.
+
+Decided not to make `back` auto-retry multiple presses — that would make step count non-deterministic and blur "one step = one action." Left it single-press, documented the gotcha instead: if `expect` fails right after a step that leaves a text field focused, add a second `back` step before assuming something else is wrong. An MCP-recording agent hits this naturally too — the tool call fails, current-screen diagnostics show the keyboard/picker still up, and it just calls `svchl_back` again as its own separate recorded step.
+
+Also: scroll direction is named for which way the *content* moves ("down" = see what's further down), not the swipe gesture direction — the two are opposite (scrolling down the content means swiping up on the screen). Chose content-direction because that's how a flow author actually thinks ("scroll down until I see X"), but it's a real ambiguity in the field (Espresso names by gesture, not content) — worth remembering if this ever gets confusing.
+
 ## 2026-09-18: why `svchl run` takes ~5s/step, and it's not AI
 
 Measured `uiautomator dump` in isolation on a real device (Galaxy S23 FE), 5 back-to-back calls on an unchanged screen: **2431 / 2386 / 2377 / 2415 / 2399ms**. Dead flat, no warm-up speedup across repeated calls.

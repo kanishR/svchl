@@ -30,7 +30,8 @@ export async function runFlow({ adb, flow, timeoutMs, outDir }) {
   for (let i = 0; i < flow.steps.length; i++) {
     const step = flow.steps[i];
     const { type, value } = actionOf(step);
-    const label = type === "launch" ? value?.app || flow.app || "app" : labelFor(value);
+    const label =
+      type === "launch" ? value?.app || flow.app || "app" : type === "back" ? "back" : labelFor(value);
     const stepStart = Date.now();
     const record = { index: i + 1, action: type, target: label, expect: step.expect };
 
@@ -49,6 +50,10 @@ export async function runFlow({ adb, flow, timeoutMs, outDir }) {
         if (!target) throw new StepError(`could not find "${value.into}" to type into`);
         await adb.tap(target.bounds.cx, target.bounds.cy);
         await adb.typeText(value.text);
+      } else if (type === "scroll") {
+        await adb.scroll(value);
+      } else if (type === "back") {
+        await adb.back();
       }
 
       const ok = await retryUntil(async () => isVisible(await dump(), step.expect), timeoutMs);

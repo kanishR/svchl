@@ -55,9 +55,33 @@ test("toYaml output round-trips through loadFlow (svchl_save_flow's contract)", 
       { launch: {}, expect: "Network & internet" },
       { tap: "Network & internet", expect: "Internet" },
       { type: { into: "Search", text: "wifi" }, expect: "Wi‑Fi" },
+      { scroll: "down", expect: "Advanced" },
+      { back: {}, expect: "Internet" },
     ],
   };
   const file = writeTmpFlow(toYaml(recorded));
   const reloaded = loadFlow(file);
   assert.deepEqual(reloaded, recorded);
+});
+
+test("loadFlow rejects an invalid scroll direction", () => {
+  const file = writeTmpFlow(`
+steps:
+  - scroll: "sideways"
+    expect: "x"
+`);
+  assert.throws(() => loadFlow(file), FlowError);
+});
+
+test("loadFlow accepts a valid scroll direction and a back step", () => {
+  const file = writeTmpFlow(`
+steps:
+  - scroll: "down"
+    expect: "x"
+  - back: {}
+    expect: "y"
+`);
+  const flow = loadFlow(file);
+  assert.deepEqual(actionOf(flow.steps[0]), { type: "scroll", value: "down" });
+  assert.deepEqual(actionOf(flow.steps[1]), { type: "back", value: {} });
 });

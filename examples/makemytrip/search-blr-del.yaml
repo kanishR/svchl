@@ -20,3 +20,9 @@ steps:
 
   - tap: "SEARCH FLIGHTS"
     expect: "Bengaluru to New Delhi"
+
+  - scroll: "down"
+    expect: "Air India"
+
+  - back: {}
+    expect: "SEARCH FLIGHTS"

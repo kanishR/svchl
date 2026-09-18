@@ -42,6 +42,8 @@ Every step is exactly one action (`launch`, `tap`, or `type`) plus an `expect` �
 - `launch: {}` — launch `app`, or `launch: { app: "com.other.app" }` for a different one.
 - `tap: "Some text"` — tap the element with that exact text or content-description. Also accepts `tap: { text: "..." }`, `tap: { desc: "..." }`, or the escape hatch `tap: { UNSAFE_id: "some_id" }` for elements with no visible label (resource-id, exact or short form).
 - `type: { into: "Email", text: "qa@test.com" }` — tap the `into` target, then type `text`.
+- `scroll: "down"` — swipe the middle of the screen, named for which way the *content* moves (`down`/`up`/`left`/`right`), not the finger. Use when the element you need isn't visible yet.
+- `back: {}` — press the system back button. If a text field has focus (keyboard showing), Android eats the first back press just closing the keyboard — you may need two `back` steps in a row. Not detected automatically; if `expect` fails right after a `type` step, this is the first thing to check.
 
 Not sure what's on screen? Run:
 
@@ -90,7 +92,6 @@ Exit code is `0` on pass, `1` on fail — wire it into CI as-is.
 
 - iOS
 - Elements with no accessibility label (raw Canvas/some Compose without `testTag`, WebViews) — `inspect` will show you an empty screen in that case
-- `scroll` and `back` actions — a real screen with a list below the fold, or a flow needing a back-navigation assertion, will hit this
 - A `--repeat` flakiness gate before a new test blocks CI
 - Video/annotated recordings, OCR fallback, a device farm runner
 - A standalone `svchl generate "..."` that works without any agent attached (today `svchl mcp` needs an MCP client, e.g. Claude Code, doing the reasoning)

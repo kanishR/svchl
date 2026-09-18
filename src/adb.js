@@ -65,6 +65,42 @@ export class Adb {
     await this.shell(["monkey", "-p", appId, "-c", "android.intent.category.LAUNCHER", "1"]);
   }
 
+  async back() {
+    await this.shell(["input", "keyevent", "KEYCODE_BACK"]);
+  }
+
+  async screenSize() {
+    if (!this._screenSize) {
+      const out = await this.shell(["wm", "size"]);
+      // "Physical size: 1080x2220" (or "Override size: ..." if one's set)
+      const m = /(\d+)x(\d+)/.exec(out);
+      if (!m) throw new Error(`could not parse screen size from "wm size": ${out}`);
+      this._screenSize = { width: Number(m[1]), height: Number(m[2]) };
+    }
+    return this._screenSize;
+  }
+
+  // A single swipe covering the middle 50% of the screen in the given
+  // direction, named for which way the CONTENT moves — "down" reveals
+  // content below (a swipe from low on screen to high), "up" reveals
+  // content above. Matches how a flow author writes `expect` for it:
+  // "scroll down until I see X".
+  async scroll(direction) {
+    const { width, height } = await this.screenSize();
+    const cx = Math.round(width / 2);
+    const cy = Math.round(height / 2);
+    const spanX = Math.round(width * 0.25);
+    const spanY = Math.round(height * 0.25);
+    const points = {
+      down: [cx, cy + spanY, cx, cy - spanY],
+      up: [cx, cy - spanY, cx, cy + spanY],
+      left: [cx + spanX, cy, cx - spanX, cy],
+      right: [cx - spanX, cy, cx + spanX, cy],
+    }[direction];
+    if (!points) throw new Error(`unknown scroll direction "${direction}"`);
+    await this.shell(["input", "swipe", ...points.map(String), "300"]);
+  }
+
   // Dumps the accessibility/UI hierarchy and returns it as an XML string.
   //
   // `uiautomator dump` itself costs ~2s+ on a real device with a complex
