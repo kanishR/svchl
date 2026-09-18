@@ -1,0 +1,38 @@
+{
+  "name": "svchl",
+  "version": "0.1.0",
+  "description": "A very small Android e2e testing CLI. YAML flows, driven over adb, no app instrumentation.",
+  "type": "module",
+  "bin": {
+    "svchl": "./bin/svchl.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "templates"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "keywords": [
+    "android",
+    "e2e",
+    "testing",
+    "adb",
+    "cli"
+  ],
+  "license": "MIT",
+  "author": "Kanish Roshan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kanishR/svchl.git"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "fast-xml-parser": "^5.7.0",
+    "yaml": "^2.5.1"
+  }
+}

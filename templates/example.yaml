@@ -1,0 +1,7 @@
+app: com.android.settings
+steps:
+  - launch: {}
+    expect: "Network & internet"
+
+  - tap: "Network & internet"
+    expect: "Internet"
