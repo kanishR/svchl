@@ -82,6 +82,10 @@ Each run writes `out/<run-id>/`:
 
 Exit code is `0` on pass, `1` on fail — wire it into CI as-is.
 
+## Examples
+
+[`examples/makemytrip`](examples/makemytrip) — a flow searching a real one-way flight (Bengaluru → New Delhi), recorded and verified against a real device. Ends at search results, deliberately, before login/payment.
+
 ## What v1 doesn't do
 
 - iOS

@@ -1,0 +1,22 @@
+app: com.makemytrip
+steps:
+  - launch: {}
+    expect: "Flights"
+
+  - tap: "Flights"
+    expect: "SEARCH FLIGHTS"
+
+  - tap: { UNSAFE_id: "from_selection_layout" }
+    expect: "RECENT SEARCHES"
+
+  - tap: "Bengaluru"
+    expect: "BLR"
+
+  - tap: { UNSAFE_id: "to_city_layout" }
+    expect: "RECENT SEARCHES"
+
+  - tap: "New Delhi, INDIA"
+    expect: "SEARCH FLIGHTS"
+
+  - tap: "SEARCH FLIGHTS"
+    expect: "Bengaluru to New Delhi"
