@@ -2,8 +2,6 @@
 
 Experimental Android e2e testing CLI. Drives a real app over `adb` — no test APK, no SDK to link in, just reading the screen and tapping/typing like a person would.
 
-**Status: WIP, built for personal use, sharing as-is.** Rough edges expected.
-
 ## Idea
 
 Every step is one action plus `expect` — what should be on screen afterward. The runner polls for that instead of guessing how long to sleep. No `expect`, no flow — it won't parse.
