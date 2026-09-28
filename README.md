@@ -2,7 +2,7 @@
 
 Experimental Android e2e testing CLI. Drives a real app over `adb` — no test APK, no SDK to link in, just reading the screen and tapping/typing like a person would.
 
-**Status: WIP, built for personal use, sharing as-is.** Rough edges expected — see [LEARNING_LOG.md](LEARNING_LOG.md) for gotchas found along the way.
+**Status: WIP, built for personal use, sharing as-is.** Rough edges expected.
 
 ## Idea
 
