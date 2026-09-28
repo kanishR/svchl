@@ -1,20 +1,18 @@
 # svchl
 
-A very small Android e2e testing CLI. No app instrumentation, no SDK to link in — it drives your app over `adb` the same way a person would: read what's on screen, tap it, type into it, check what appeared.
+Experimental Android e2e testing CLI. Drives a real app over `adb` — no test APK, no SDK to link in, just reading the screen and tapping/typing like a person would.
 
-## Why
+**Status: WIP, built for personal use, sharing as-is.** Rough edges expected — see [LEARNING_LOG.md](LEARNING_LOG.md) for gotchas found along the way.
 
-Most Android e2e setups (Espresso, UI Automator, Appium) need a test APK built against your app, and flake for reasons that have nothing to do with your product. `svchl` skips that: it reads the accessibility tree over `adb`, so it works against any installed app, debug or release.
+## Idea
 
-It borrows one idea from [Shopify's mobile e2e work](https://shopify.engineering/mobile-e2e-testing): every step names what it expects to see afterward, and the runner polls for that instead of sleeping a fixed amount. A step with no expectation is a parse error, not a maybe.
+Every step is one action plus `expect` — what should be on screen afterward. The runner polls for that instead of guessing how long to sleep. No `expect`, no flow — it won't parse.
 
 ## Install
 
 ```bash
 npx svchl install
 ```
-
-Checks for `adb`, lists connected devices, and writes `flows/example.yaml`.
 
 ## Quickstart
 
@@ -23,84 +21,40 @@ npx svchl devices
 npx svchl run flows/example.yaml
 ```
 
-## Writing a flow
+## A flow
 
 ```yaml
 app: com.android.settings
 steps:
   - launch: {}
     expect: "Network & internet"
-
   - tap: "Network & internet"
     expect: "Internet"
 ```
 
-Every step is exactly one action (`launch`, `tap`, or `type`) plus an `expect` — the text that must appear on screen afterward. The runner retries every 300ms until `expect` is satisfied or `--timeout` (default 10s) runs out, then fails the step.
+**Actions** (each needs `expect`):
 
-**Actions**
+- `launch: {}` — or `launch: { app: "com.other.app" }`
+- `tap: "text"` — also `{ text }`, `{ desc }`, or `{ UNSAFE_id: "..." }` for unlabeled elements
+- `type: { into: "Email", text: "..." }`
+- `scroll: "down"` — `down`/`up`/`left`/`right`, named by which way content moves
+- `back: {}` — one press; a focused text field can eat the first one, may need two in a row
 
-- `launch: {}` — launch `app`, or `launch: { app: "com.other.app" }` for a different one.
-- `tap: "Some text"` — tap the element with that exact text or content-description. Also accepts `tap: { text: "..." }`, `tap: { desc: "..." }`, or the escape hatch `tap: { UNSAFE_id: "some_id" }` for elements with no visible label (resource-id, exact or short form).
-- `type: { into: "Email", text: "qa@test.com" }` — tap the `into` target, then type `text`.
-- `scroll: "down"` — swipe the middle of the screen, named for which way the *content* moves (`down`/`up`/`left`/`right`), not the finger. Use when the element you need isn't visible yet.
-- `back: {}` — press the system back button. If a text field has focus (keyboard showing), Android eats the first back press just closing the keyboard — you may need two `back` steps in a row. Not detected automatically; if `expect` fails right after a `type` step, this is the first thing to check.
+`npx svchl inspect --device <serial>` shows what's tappable on the current screen.
 
-Not sure what's on screen? Run:
+## Recording flows with an AI agent
 
-```bash
-npx svchl inspect --device <serial>
-```
-
-It lists every labeled element currently visible, marking which ones are tappable.
-
-## Writing flows with an AI agent
-
-`svchl mcp` starts an MCP server exposing `inspect`/`tap`/`type`/`launch` as tools. It does **not** call any LLM itself — it's driven by whatever agent is attached (Claude Code, Claude Desktop, any MCP client). The split stays the same as the rest of this tool: the agent only does the *authoring*, live, once. What it saves is a plain flow file, replayed forever after by `svchl run` with no AI involved and no per-run cost or flakiness.
-
-Register it once, at user scope, so it's available from `claude` in any terminal (not published to npm yet, so point it at your local checkout):
+`npx svchl mcp` exposes the same actions as MCP tools. Nothing inside `svchl` calls an LLM — whatever agent is attached drives it live, and what gets saved is a plain flow file, no AI needed to replay it after.
 
 ```bash
 claude mcp add -s user svchl -- node /path/to/svchl/bin/svchl.js mcp
 ```
 
-(once published: `claude mcp add -s user svchl -- npx svchl mcp`). `flows/` lands in whatever directory you run `claude` from.
-
-Then just open a terminal, run `claude`, and ask, in either form:
-
-- **Natural language**: "Book a ticket from Bengaluru to Delhi on ixigo" — treat "book" loosely, the agent should stop at search results, not actually log in or pay. Say so explicitly if you want to be sure.
-- **A PRD**: point the agent at a PRD file and ask it to turn each acceptance criterion into a flow. It should list the scenarios it plans to record first so you can confirm before it starts driving the device.
-
-The agent's loop is exactly the tool set: `svchl_inspect` to see the screen, `svchl_tap`/`svchl_type`/`svchl_launch`/`svchl_scroll`/`svchl_back` to act (each requires the same `expect` every hand-written step does — the tool schema won't let it skip that), `svchl_save_flow` to write `flows/*.yaml`, and `svchl_verify_flow` to replay the saved file once, deterministically, as a sanity check before you trust it in CI.
-
-Each tool call goes through Claude Code's normal permission prompts unless you've allowlisted them, so expect to approve the first few.
+Then in a terminal: "book a ticket from X to Y on \<app\>", or point it at a PRD.
 
 ## Output
 
-Each run writes `out/<run-id>/`:
-
-- a screenshot after every passing step
-- `result.json` — status, timing, and target for every step
-- on failure: a screenshot and the raw UI dump (`*.ui.xml`) for the failing step, no rerun needed
-
-Exit code is `0` on pass, `1` on fail — wire it into CI as-is.
-
-## Examples
-
-[`examples/makemytrip`](examples/makemytrip) — a flow searching a real one-way flight (Bengaluru → New Delhi), recorded and verified against a real device. Ends at search results, deliberately, before login/payment.
-
-## What v1 doesn't do
-
-- iOS
-- Elements with no accessibility label (raw Canvas/some Compose without `testTag`, WebViews) — `inspect` will show you an empty screen in that case
-- A `--repeat` flakiness gate before a new test blocks CI
-- Video/annotated recordings, OCR fallback, a device farm runner
-- A standalone `svchl generate "..."` that works without any agent attached (today `svchl mcp` needs an MCP client, e.g. Claude Code, doing the reasoning)
-
-These are the natural next steps, not accidents — see [software-mansion/argent](https://github.com/software-mansion/argent) and [google/artemis](https://github.com/google/artemis) for where this can go.
-
-## Learning log
-
-[`LEARNING_LOG.md`](LEARNING_LOG.md) — dated notes on gotchas and performance findings discovered while building/using this, kept so they don't get rediscovered from scratch.
+`out/<run-id>/` — a screenshot per passing step, `result.json`, and on failure a screenshot + the raw UI dump. Exit code 0/1.
 
 ## License
 
