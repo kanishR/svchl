@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { createHash } from "node:crypto";
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "" });
 
@@ -82,6 +83,18 @@ export function isVisible(nodes, expectation) {
 // screen; only surface elements a flow could actually target.
 export function visibleElements(nodes) {
   return nodes.filter((n) => n.text || n.desc || (n.clickable && n.id));
+}
+
+// A short id identifying "the same logical screen" across visits, for
+// svchl crawl's dedup. Built from resource-ids (stable across data
+// refreshes — a fare or a date changing shouldn't count as a new screen)
+// with a fallback to text only for elements that have no id at all
+// (common for static labels like nav tiles). Order-independent.
+export function screenSignature(nodes) {
+  const parts = visibleElements(nodes)
+    .map((n) => (n.id ? `id:${n.id}` : `t:${n.text || n.desc}`) + (n.clickable ? "*" : ""))
+    .sort();
+  return createHash("sha1").update(parts.join("\n")).digest("hex").slice(0, 12);
 }
 
 export function labelFor(target) {

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseTree, find, findTappable, isVisible } from "../src/locator.js";
+import { parseTree, find, findTappable, isVisible, screenSignature } from "../src/locator.js";
 
 const SAMPLE_XML = `<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
 <hierarchy rotation="0">
@@ -34,4 +34,22 @@ test("isVisible checks text across all nodes", () => {
   const nodes = parseTree(SAMPLE_XML);
   assert.equal(isVisible(nodes, "Search settings"), true);
   assert.equal(isVisible(nodes, "Nonexistent"), false);
+});
+
+test("screenSignature ignores dynamic text on elements that have a resource-id (svchl crawl's dedup)", () => {
+  const withFareA = parseTree(`<hierarchy><node text="₹ 8,817" resource-id="com.example:id/fare" class="x" content-desc="" clickable="false" bounds="[0,0][100,50]" /></hierarchy>`);
+  const withFareB = parseTree(`<hierarchy><node text="₹ 12,004" resource-id="com.example:id/fare" class="x" content-desc="" clickable="false" bounds="[0,0][100,50]" /></hierarchy>`);
+  assert.equal(screenSignature(withFareA), screenSignature(withFareB));
+});
+
+test("screenSignature differs for structurally different screens", () => {
+  const a = parseTree(`<hierarchy><node text="Flights" resource-id="com.example:id/tab" class="x" content-desc="" clickable="true" bounds="[0,0][100,50]" /></hierarchy>`);
+  const b = parseTree(`<hierarchy><node text="Hotels" resource-id="com.example:id/tab2" class="x" content-desc="" clickable="true" bounds="[0,0][100,50]" /></hierarchy>`);
+  assert.notEqual(screenSignature(a), screenSignature(b));
+});
+
+test("screenSignature is order-independent", () => {
+  const a = parseTree(`<hierarchy><node text="A" resource-id="id/a" class="x" content-desc="" clickable="true" bounds="[0,0][10,10]" /><node text="B" resource-id="id/b" class="x" content-desc="" clickable="true" bounds="[0,0][10,10]" /></hierarchy>`);
+  const b = parseTree(`<hierarchy><node text="B" resource-id="id/b" class="x" content-desc="" clickable="true" bounds="[0,0][10,10]" /><node text="A" resource-id="id/a" class="x" content-desc="" clickable="true" bounds="[0,0][10,10]" /></hierarchy>`);
+  assert.equal(screenSignature(a), screenSignature(b));
 });

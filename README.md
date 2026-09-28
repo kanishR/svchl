@@ -50,6 +50,15 @@ claude mcp add -s user svchl -- node /path/to/svchl/bin/svchl.js mcp
 
 Then in a terminal: "book a ticket from X to Y on \<app\>", or point it at a PRD.
 
+## Mapping an app
+
+```bash
+npx svchl crawl com.android.settings --max-nodes 12
+npx svchl view map/<run-id>
+```
+
+Explores an app automatically (taps everything it can find, backs out, repeats), screenshotting every distinct screen it reaches, and opens it as a clickable navigation map in the browser. Bounded by `--max-depth`/`--max-nodes` since this is real device time (~5-10s per screen). Skips anything that looks like a call, payment, login, or delete by default — see `--skip` to extend the list. Slow and best-effort by nature (it's guessing what's safe to tap on an app it doesn't understand); read the log output, it says what it skipped and why any branch got cut short.
+
 ## Output
 
 `out/<run-id>/` — a screenshot per passing step, `result.json`, and on failure a screenshot + the raw UI dump. Exit code 0/1.

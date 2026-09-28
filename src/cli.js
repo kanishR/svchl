@@ -4,6 +4,8 @@ import { devices } from "./commands/devices.js";
 import { inspect } from "./commands/inspect.js";
 import { run as runCmd } from "./commands/run.js";
 import { mcp } from "./commands/mcp.js";
+import { crawl } from "./commands/crawl.js";
+import { view } from "./commands/view.js";
 
 export async function run(argv) {
   const program = new Command();
@@ -36,6 +38,22 @@ export async function run(argv) {
     .command("mcp")
     .description("start an MCP server exposing inspect/tap/type/launch, so an AI agent can author flows by driving a real device")
     .action(mcp);
+
+  program
+    .command("crawl <app>")
+    .description("explore an app's screens automatically and build a navigation map (screenshots + transitions)")
+    .option("--device <serial>", "target device (required if more than one is connected)")
+    .option("--max-depth <n>", "how many taps deep to explore from the home screen", "2")
+    .option("--max-nodes <n>", "stop after discovering this many distinct screens", "12")
+    .option("--settle <ms>", "fixed wait after each action before reading the screen", "500")
+    .option("--skip <labels>", "comma-separated labels to never tap, added to the built-in denylist (call, pay, login, delete, ...)")
+    .action((app, opts) => crawl(app, opts));
+
+  program
+    .command("view <mapDir>")
+    .description("serve a crawled map (from `svchl crawl`) as a browsable navigation graph")
+    .option("--port <port>", "local port to serve on", "4884")
+    .action((mapDir, opts) => view(mapDir, opts));
 
   await program.parseAsync(argv);
 }

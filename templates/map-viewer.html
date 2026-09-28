@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>svchl map</title>
+<style>
+  :root {
+    --bg: #fafaf8;
+    --card: #ffffff;
+    --border: #d8d6cf;
+    --text: #1c1c1a;
+    --muted: #6b6a63;
+    --accent: #185fa5;
+    --left-app: #a32d2d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  header h1 { font-size: 16px; font-weight: 600; margin: 0; }
+  header .meta { color: var(--muted); font-size: 13px; }
+  #canvas { position: relative; padding: 40px; overflow: auto; }
+  .row { display: flex; gap: 48px; margin-bottom: 90px; justify-content: flex-start; }
+  .node {
+    width: 130px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .node img {
+    width: 130px;
+    height: 282px;
+    object-fit: cover;
+    object-position: top;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #eee;
+    display: block;
+  }
+  .node:hover img { border-color: var(--accent); }
+  .node .caption { font-size: 11px; color: var(--muted); margin-top: 4px; text-align: center; word-break: break-all; }
+  svg#edges { position: absolute; top: 0; left: 0; pointer-events: none; overflow: visible; }
+  svg#edges text { font-size: 11px; fill: var(--muted); }
+  svg#edges .left-app { stroke-dasharray: 4 3; }
+  #empty { padding: 40px; color: var(--muted); }
+  #lightbox {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    align-items: center; justify-content: center;
+    z-index: 10;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox .panel {
+    background: var(--card);
+    border-radius: 8px;
+    padding: 16px;
+    max-height: 90vh;
+    display: flex;
+    gap: 20px;
+  }
+  #lightbox img { max-height: 80vh; border: 1px solid var(--border); border-radius: 4px; }
+  #lightbox .info { width: 240px; font-size: 13px; overflow-y: auto; }
+  #lightbox .info h2 { font-size: 13px; margin: 0 0 8px; }
+  #lightbox .info ul { list-style: none; margin: 0 0 16px; padding: 0; }
+  #lightbox .info li { padding: 3px 0; color: var(--muted); }
+  #lightbox .close { cursor: pointer; color: var(--accent); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">svchl map</h1>
+  <span class="meta" id="meta"></span>
+</header>
+<div id="canvas"><div id="empty">loading graph.json…</div></div>
+<div id="lightbox">
+  <div class="panel">
+    <img id="lightbox-img" />
+    <div class="info">
+      <div class="close" onclick="closeLightbox()">close ✕</div>
+      <h2>reached via</h2>
+      <ul id="lightbox-in"></ul>
+      <h2>leads to</h2>
+      <ul id="lightbox-out"></ul>
+    </div>
+  </div>
+</div>
+<script>
+let graph = null;
+
+async function load() {
+  const res = await fetch("graph.json");
+  if (!res.ok) {
+    document.getElementById("empty").textContent = "couldn't load graph.json — is this a svchl crawl output directory?";
+    return;
+  }
+  graph = await res.json();
+  render();
+}
+
+function render() {
+  document.getElementById("title").textContent = graph.app;
+  document.getElementById("meta").textContent =
+    `${graph.nodes.length} screens · ${graph.edges.length} transitions · crawled ${new Date(graph.createdAt).toLocaleString()}`;
+
+  const canvas = document.getElementById("canvas");
+  canvas.innerHTML = "";
+
+  const byDepth = {};
+  for (const n of graph.nodes) (byDepth[n.depth] ??= []).push(n);
+  const depths = Object.keys(byDepth).map(Number).sort((a, b) => a - b);
+
+  for (const d of depths) {
+    const row = document.createElement("div");
+    row.className = "row";
+    for (const n of byDepth[d]) {
+      const el = document.createElement("div");
+      el.className = "node";
+      el.id = "node-" + n.id;
+      el.onclick = () => openLightbox(n.id);
+      el.innerHTML = `<img src="${n.screenshot}" loading="lazy" /><div class="caption">${n.id}</div>`;
+      row.appendChild(el);
+    }
+    canvas.appendChild(row);
+  }
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.id = "edges";
+  canvas.appendChild(svg);
+  requestAnimationFrame(drawEdges);
+}
+
+function drawEdges() {
+  const svg = document.getElementById("edges");
+  const canvas = document.getElementById("canvas");
+  const canvasRect = canvas.getBoundingClientRect();
+  svg.setAttribute("width", canvas.scrollWidth);
+  svg.setAttribute("height", canvas.scrollHeight);
+  svg.innerHTML = `<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#888" stroke-width="1.5"/></marker></defs>`;
+
+  // Several things graph.edges can contain that aren't clean drawable
+  // lines:
+  // - left-app edges (e.to is null) — nowhere to point, lightbox only
+  // - self-loops (e.from === e.to, a toggle or an already-selected tab) —
+  //   a line from a node to itself is a degenerate box-through-itself
+  // - backward/same-depth edges (e.g. a "Navigate up" back-arrow, or
+  //   dedup landing back on an already-seen shallower screen) — these
+  //   share their visual line with the forward edge that reached the
+  //   same pair of nodes, so drawing both garbles the label. The map's
+  //   value is showing how to go deeper, not every way back (which is
+  //   implied by depth), so only forward (to.depth > from.depth) edges
+  //   get drawn.
+  // All of the above stay fully visible in each node's lightbox.
+  const depthOf = Object.fromEntries(graph.nodes.map((n) => [n.id, n.depth]));
+  const byPair = new Map();
+  for (const e of graph.edges) {
+    if (!e.to || e.to === e.from) continue;
+    if (!(depthOf[e.to] > depthOf[e.from])) continue;
+    const key = e.from + "->" + e.to;
+    if (!byPair.has(key)) byPair.set(key, { from: e.from, to: e.to, labels: [] });
+    byPair.get(key).labels.push(e.label);
+  }
+
+  for (const { from, to, labels } of byPair.values()) {
+    const fromEl = document.getElementById("node-" + from);
+    const toEl = document.getElementById("node-" + to);
+    if (!fromEl || !toEl) continue;
+    const f = fromEl.getBoundingClientRect(), t = toEl.getBoundingClientRect();
+    const x1 = f.left - canvasRect.left + f.width / 2 + canvas.scrollLeft;
+    const y1 = f.bottom - canvasRect.top + canvas.scrollTop;
+    const x2 = t.left - canvasRect.left + t.width / 2 + canvas.scrollLeft;
+    const y2 = t.top - canvasRect.top + canvas.scrollTop;
+    const midY = (y1 + y2) / 2;
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", `M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}`);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "#aaa");
+    path.setAttribute("stroke-width", "1.5");
+    path.setAttribute("marker-end", "url(#arrow)");
+    svg.appendChild(path);
+
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.setAttribute("x", (x1 + x2) / 2 + 6);
+    label.setAttribute("y", midY);
+    label.textContent = labels.length > 1 ? `${labels[0]} (+${labels.length - 1})` : labels[0];
+    svg.appendChild(label);
+  }
+}
+
+function openLightbox(id) {
+  const node = graph.nodes.find((n) => n.id === id);
+  document.getElementById("lightbox-img").src = node.screenshot;
+  document.getElementById("lightbox-in").innerHTML =
+    graph.edges.filter((e) => e.to === id).map((e) => `<li>"${e.label}" from ${e.from}</li>`).join("") || "<li>(root screen)</li>";
+  document.getElementById("lightbox-out").innerHTML =
+    graph.edges.filter((e) => e.from === id).map((e) => `<li>"${e.label}" ${e.to ? "→ " + e.to : "(left the app)"}</li>`).join("") || "<li>(none explored)</li>";
+  document.getElementById("lightbox").classList.add("open");
+}
+function closeLightbox() {
+  document.getElementById("lightbox").classList.remove("open");
+}
+document.getElementById("lightbox").addEventListener("click", (e) => {
+  if (e.target.id === "lightbox") closeLightbox();
+});
+
+load();
+window.addEventListener("resize", () => graph && drawEdges());
+</script>
+</body>
+</html>

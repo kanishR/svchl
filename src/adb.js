@@ -69,6 +69,16 @@ export class Adb {
     await this.shell(["input", "keyevent", "KEYCODE_BACK"]);
   }
 
+  // The package currently in the foreground, e.g. "com.makemytrip", parsed
+  // from `dumpsys window`'s mCurrentFocus line ("Window{... u0
+  // pkg/pkg.Activity}"). Used to detect a tap that left the app entirely
+  // (opened the dialer, a browser, a share sheet, ...).
+  async currentPackage() {
+    const out = await this.shell(["dumpsys", "window"]);
+    const m = /mCurrentFocus=Window\{[^ ]+ [^ ]+ ([^/}\s]+)/.exec(out);
+    return m ? m[1] : null;
+  }
+
   async screenSize() {
     if (!this._screenSize) {
       const out = await this.shell(["wm", "size"]);
